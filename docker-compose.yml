@@ -1,0 +1,138 @@
+version: "3"
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - 1433:1433
+    environment: 
+      MSSQL_AGENT_ENABLED: "true"
+      MSSQL_PID: Developer
+      SA_PASSWORD: P@ssw0rd
+      ACCEPT_EULA: "Y"
+
+  zookeeper-cdc-nifi:  # the configuration manager
+    hostname: zookeeper-cdc
+    container_name: zookeeper-cdc-nifi
+    image: 'bitnami/zookeeper:latest'
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  nifi-cdc:
+    image: apache/nifi:latest
+    hostname: nifi
+    container_name: nifi-cdc
+    ports:
+      - 9443:9443 # Unsecured HTTP Web Port
+    environment:
+      - SINGLE_USER_CREDENTIALS_USERNAME=admin
+      - SINGLE_USER_CREDENTIALS_PASSWORD=ctsBtRBKHRAx69EqUghvvgEvjnaLjFEB
+      - NIFI_WEB_HTTP_PORT=9443
+      - NIFI_CLUSTER_IS_NODE=true
+      - NIFI_CLUSTER_NODE_PROTOCOL_PORT=8082
+      - NIFI_ZK_CONNECT_STRING=zookeeper-cdc:2181
+      - NIFI_ELECTION_MAX_WAIT=1 min
+      - NIFI_SENSITIVE_PROPS_KEY='12345678901234567890A'
+    volumes:
+      - /nifi:/data
+
+  registry-cdc:
+    hostname: myregistry
+    container_name: registry-cdc
+    image: 'apache/nifi-registry:latest'  # latest image as of 2023-08-22 
+    restart: on-failure
+    ports:
+        - "8080:8080"
+    environment:
+        - LOG_LEVEL=INFO
+        - NIFI_REGISTRY_DB_DIR=/opt/nifi-registry/nifi-registry-current/database
+        - NIFI_REGISTRY_FLOW_PROVIDER=file
+        - NIFI_REGISTRY_FLOW_STORAGE_DIR=/opt/nifi-registry/nifi-registry-current/flow_storage
+    volumes:
+        - ./nifi_registry/database:/opt/nifi-registry/nifi-registry-current/database
+        - ./nifi_registry/flow_storage:/opt/nifi-registry/nifi-registry-current/flow_storage
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper-kafka
+    ports:
+      - 2181:2181
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    hostname: kafka-broker-1
+    depends_on:
+      - zookeeper
+    ports:
+      - 9092:9092
+    volumes:
+      - ./config:/home/config
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-kafka:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    
+  connect:
+    image: cdc:latest
+    depends_on:
+      - zookeeper
+      - kafka
+    ports:
+      - 8083:8083
+    volumes:
+      - ./config:/home/config
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: connect-1
+      CONNECT_CONFIG_STORAGE_TOPIC: connect-1-config
+      CONNECT_OFFSET_STORAGE_TOPIC: connect-1-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: connect-1-status
+      #CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      #CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      #CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      #CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_OFFSET.STORAGE.REPLICATION.FACTOR: 1
+      CONNECT_CONFIG.STORAGE.REPLICATION.FACTOR: 1
+      CONNECT_OFFSET.STORAGE.PARTITIONS: 1
+      CONNECT_STATUS.STORAGE.REPLICATION.FACTOR: 1
+      CONNECT_STATUS.STORAGE.PARTITIONS: 1
+      CONNECT_REST_ADVERTISED_HOST_NAME: localhost
+    command:
+      - bash
+      - -c
+      - |
+        echo "Installing Connector"
+        confluent-hub install --no-prompt debezium/debezium-connector-sqlserver:latest
+        #confluent-hub install --no-prompt confluentinc/kafka-connect-azure-blob-storage:latest
+        #
+        echo "Launching Kafka Connect worker"
+        /etc/confluent/docker/run &
+        #
+        sleep infinity
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:latest
+    hostname: schema-registry
+    depends_on:
+      - zookeeper
+      - kafka
+    ports:
+      - 8081:8081
+    environment:
+      #SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zookeeper:2181
+      #SCHEMA_REGISTRY_HOST_NAME: localhost
+      #SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      #SCHEMA_REGISTRY_KAFKASTORE_TOPIC_SERVERS: PLAINTEXT://localhost:9092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: 'zookeeper-kafka:2181'
+      SCHEMA_REGISTRY_LISTENERS: http://schema-registry:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-broker-1:9092,PLAINTEXT_INTERNAL://localhost:9092
+      SCHEMA_REGISTRY_DEBUG: 'true'

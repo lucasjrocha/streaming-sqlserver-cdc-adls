@@ -1,0 +1,81 @@
+## Criar imagem docker cdc:latest
+docker build . -t cdc:latest
+
+----------------------------------------------------------------------------
+
+## Docker compose up dentro do diretorio do windows no cmd
+docker compose up -d
+
+----------------------------------------------------------------------------
+
+## Criar database/tabela e ativar o CDC:
+bash -c '/opt/mssql-tools/bin/sqlcmd -U sa -P P@ssw0rd'
+
+CREATE DATABASE CDC_2023;
+GO
+USE CDC_2023
+GO
+CREATE TABLE t1 (c1 INT IDENTITY, c2 VARCHAR(50), CONSTRAINT pk PRIMARY KEY(c1))
+GO
+USE CDC_2023
+GO
+EXEC sys.sp_cdc_enable_db
+GO
+USE CDC_2023
+GO
+EXEC sys.sp_cdc_enable_table @source_schema = N'dbo', @source_name = N't1', @role_name = NULL, @filegroup_name = N'PRIMARY'
+GO
+
+----------------------------------------------------------------------------
+----------------------------------------------------------------------------
+
+## Retornar o IP:
+SELECT client_net_address FROM sys.dm_exec_connections WHERE session_id = @@SPID AND net_transport = 'TCP';
+## Retornar a porta:
+SELECT TOP 1 local_tcp_port FROM sys.dm_exec_connections WHERE local_tcp_port IS NOT NULL
+
+----------------------------------------------------------------------------
+----------------------------------------------------------------------------
+
+## Configurar Kafka Connect para realizar leitura da tabela que for passada no "table.include.list":
+
+curl -i -X POST -H "Accept:application/json" -H "Content-Type:application/json" http://localhost:8083/connectors/ -d '{"name": "db-connector", "config": {"connector.class" : "io.debezium.connector.sqlserver.SqlServerConnector", "tasks.max" : "1", "database.server.name" : "localhost", "database.hostname" : "172.20.0.5", "database.port" : "1433", "database.user" : "sa", "database.password" : "P@ssw0rd", "database.names" : "CDC_2023", "topic.prefix" : "CDC_T1", "database.encrypt":"false", "table.include.list": "dbo.t1","schema.history.internal.kafka.bootstrap.servers": "kafka:9092", "schema.history.internal.kafka.topic": "schema-changes.db"}}'
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+### CRIAR Connector para ADLS no Kafka Connect Container:
+curl -i -X POST -H "Accept:application/json" -H "Content-Type:application/json" http://localhost:8083/connectors/ -d '{"name": "blob-sink", "config": {"name": "blob-sink", "connector.class": "io.confluent.connect.azure.blob.AzureBlobStorageSinkConnector", "tasks.max": "1", "topics": "10.6.0.14_TESTE_2O22.GPP.Parada", "flush.size": "3", "azblob.account.name": "stbiacocearensedev", "azblob.account.key": "aGehLik/iwL+yi0csn/PJzDscmPSufXqY632a0sJdcifo9ZhOR07xQdcO87TybvQT0qtdLE+uAcZ+AStFcTaYg==", "azblob.container.name": "tmp", "format.class": "io.confluent.connect.azure.blob.format.avro.AvroFormat", "confluent.topic.bootstrap.servers": "kafka:9092", "confluent.topic.replication.factor": "1"}}'
+
+----------------------------------------------------------------------------
+
+## Listar os Tópicos Criados dentro do container kafka:
+kafka-topics --list --bootstrap-server kafka:9092
+
+----------------------------------------------------------------------------
+## Começar a ler as mensagens com o Consumer dentro do Kafka Container:
+docker exec -it streaming-sqlserver-cdc-adls-kafka-1 sh /usr/bin/kafka-console-consumer --bootstrap-server kafka:9092 --topic CDC_T1.CDC_2023.dbo.t1 --from-beginning
+docker exec -it kafka sh /usr/bin/kafka-console-consumer --bootstrap-server kafka:9092 --topic "topicname" --from-beginning
+
+----------------------------------------------------------------------------
+
+## Descrever GROUP e CLIENT ID
+Comando para descrever todos os tópicos: 
+docker exec -it kafka sh /usr/bin/kafka-consumer-groups --all-topics --bootstrap-server kafka:9092 --list
+docker exec -it kafka sh /usr/bin/kafka-consumer-groups --bootstrap-server kafka:9092 --describe --group groupname --offsets
+
+----------------------------------------------------------------------------
+
+## Describe TOPICO
+docker exec -it kafka sh /opt/kafka/bin/kafka-topics --describe --topic topicname --bootstrap-server kafka:9092
+
+----------------------------------------------------------------------------
+
+## DELETAR TOPICO:
+docker exec -it kafka sh /bin/kafka-console-consumer --zookeeper zookeeper-cdc:2181 --delete --topic topicname
+
+----------------------------------------------------------------------------
+
+## Criar Tópicos:
+docker exec -it kafka sh /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create  --topic test --partitions 1 --replication-factor 1
+
+----------------------------------------------------------------------------

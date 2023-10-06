@@ -1,3 +1,5 @@
 config.json
 nifi_registry/database
 StreamingDataFromSQLServeToADLS.excalidraw
+nifi_registry/database/nifi-registry-primary.mv.db
+nifi_registry/database/nifi-registry-primary.mv.db.backup

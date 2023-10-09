@@ -1,4 +1,3 @@
-# streaming-sqlserver-cdc-to-adls
 # Streaming Data Project from MSSQL Server to Azure Data Lake Storage Gen2 using CDC
 
 This project demonstrates how to stream data from an MSSQL Server to Azure Data Lake Storage Gen2 using technologies such as Apache Kafka, Kafka Connect + Debezium, and Apache Nifi, all within Docker containers.

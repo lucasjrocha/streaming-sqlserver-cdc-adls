@@ -12,3 +12,49 @@ USE CDC_2023
 GO
 EXEC sys.sp_cdc_enable_table @source_schema = N'dbo', @source_name = N't1', @role_name = NULL, @filegroup_name = N'PRIMARY'
 GO
+
+USE CDC_2023
+INSERT INTO t1 (c2) VALUES ('123');
+INSERT INTO t1 (c2) VALUES ('321');
+INSERT INTO t1 (c2) VALUES ('A');
+INSERT INTO t1 (c2) VALUES ('S');
+INSERT INTO t1 (c2) VALUES ('D');
+INSERT INTO t1 (c2) VALUES ('F');
+INSERT INTO t1 (c2) VALUES ('1H');
+INSERT INTO t1 (c2) VALUES ('H2');
+INSERT INTO t1 (c2) VALUES ('H3');
+INSERT INTO t1 (c2) VALUES ('H4');
+INSERT INTO t1 (c2) VALUES ('Hfd');
+INSERT INTO t1 (c2) VALUES ('Hd');
+INSERT INTO t1 (c2) VALUES ('Hdc');
+INSERT INTO t1 (c2) VALUES ('Hc');
+INSERT INTO t1 (c2) VALUES ('Hxn');
+INSERT INTO t1 (c2) VALUES ('H12');
+INSERT INTO t1 (c2) VALUES ('H21');
+INSERT INTO t1 (c2) VALUES ('H13');
+INSERT INTO t1 (c2) VALUES ('H254');
+INSERT INTO t1 (c2) VALUES ('H546');
+INSERT INTO t1 (c2) VALUES ('H567');
+INSERT INTO t1 (c2) VALUES ('H24234');
+INSERT INTO t1 (c2) VALUES ('H456');
+INSERT INTO t1 (c2) VALUES ('Hgdfg');
+INSERT INTO t1 (c2) VALUES ('Hdasd');
+INSERT INTO t1 (c2) VALUES ('Herter');
+INSERT INTO t1 (c2) VALUES ('Hxcvxv');
+INSERT INTO t1 (c2) VALUES ('Hasdqd');
+INSERT INTO t1 (c2) VALUES ('Hzxcas');
+INSERT INTO t1 (c2) VALUES ('Hiouo');
+INSERT INTO t1 (c2) VALUES ('Hvcbnf');
+INSERT INTO t1 (c2) VALUES ('Hljklj');
+INSERT INTO t1 (c2) VALUES ('Huiyiyu');
+INSERT INTO t1 (c2) VALUES ('Hfddfg');
+INSERT INTO t1 (c2) VALUES ('Hqwerr');
+INSERT INTO t1 (c2) VALUES ('Hgdgs');
+INSERT INTO t1 (c2) VALUES ('Hasdasd');
+INSERT INTO t1 (c2) VALUES ('Hdqsd');
+INSERT INTO t1 (c2) VALUES ('Hdfsdfq');
+INSERT INTO t1 (c2) VALUES ('Hdfsdfqasd');
+
+UPDATE t1 SET c2 = 'Novo valor para o primeiro registro' WHERE c1 = 1;
+
+DELETE FROM t1 WHERE c1 = 2;

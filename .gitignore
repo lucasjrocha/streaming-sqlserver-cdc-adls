@@ -4,3 +4,6 @@ StreamingDataFromSQLServeToADLS.excalidraw
 nifi_registry/database/nifi-registry-primary.mv.db
 nifi_registry/database/nifi-registry-primary.mv.db.backup
 test.txt
+0-DockerComposeandFile.png
+images
+ab.json
